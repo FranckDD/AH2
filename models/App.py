@@ -1,6 +1,5 @@
 import customtkinter
 
-
 class App(customtkinter.CTk):
     def __init__(self):
         super().__init__()
@@ -22,3 +21,4 @@ class App(customtkinter.CTk):
 
     def button_callback(self):
         print("button pressed")
+
