@@ -3,19 +3,13 @@ import customtkinter as ctk
 from PIL import Image
 import os
 
-#controller
-
 # Tes vues existantes
 from view.doctor_views.doctors_dashboard_view import DoctorsDashboardView
 from view.doctor_views.doctors_list_view import DoctorsListView
 from view.doctor_views.doctors_edit_view import DoctorsEditView
-
-# Vues patients (dossier patient_views)
-from .patient_view.patients_dashboard_view import PatientsDashboardView
-from .patient_view.patients_list_view import PatientListView
-from .patient_view.patients_edit_view import PatientsEditView
-
-# Vues RDV
+from view.patient_view.patients_dashboard_view import PatientsDashboardView
+from view.patient_view.patients_list_view import PatientListView
+from view.patient_view.patients_edit_view import PatientsEditView
 from view.appointment_views.appointments_dashboard_view import AppointmentsDashboardView
 from view.appointment_views.appointments_list_view import AppointmentsListView
 from view.appointment_views.appointments_book_view import AppointmentsBookView
@@ -173,13 +167,11 @@ class DashboardView(ctk.CTkFrame):
 
     def show_patients_list(self):
         self._clear_content()
-        PatientListView(self.content, self).pack(expand=True, fill="both")
+        PatientListView(self.content).pack(expand=True, fill="both")
 
-
-    def show_patients_edit(self, patient_id=None):
+    def show_patients_edit(self):
         self._clear_content()
-        PatientsEditView(self.content, self, self.user, patient_id).pack(expand=True, fill="both")
-
+        PatientsEditView(self.content).pack(expand=True, fill="both")
 
     def show_appointments_dashboard(self):
         self._clear_content()

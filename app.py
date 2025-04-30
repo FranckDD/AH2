@@ -1,7 +1,7 @@
 import customtkinter as ctk
 from models.database import DatabaseManager
 from controller.patient_controller import PatientController
-from view.patient_view import PatientView
+from view.patient_view.patient_form import PatientView
 
 
 

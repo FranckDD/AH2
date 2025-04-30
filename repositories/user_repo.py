@@ -1,4 +1,4 @@
-from sqlalchemy.orm import Session, joinedload  # Ajoutez joinedload
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import text
 from models.user import User
 from models.database import DatabaseManager
@@ -30,3 +30,15 @@ class UserRepository:
             "WHERE rp.role_id = :role_id"
         )
         return self.session.execute(query, {'role_id': role_id}).scalars().all()
+
+    def create_user(self, username: str, password: str, full_name: str, **kwargs):
+        """Crée un nouvel utilisateur avec le mot de passe hashé"""
+        user = User(
+            username=username,
+            full_name=full_name,
+            **kwargs
+        )
+        user.set_password(password)  # Utilise la méthode set_password de User
+        self.session.add(user)
+        self.session.commit()
+        return user

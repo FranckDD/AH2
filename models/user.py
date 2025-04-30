@@ -1,8 +1,9 @@
 from sqlalchemy import Column, Integer, String, Boolean, ForeignKey
 from sqlalchemy.orm import relationship
 from .database import Base
-import bcrypt
+from passlib.context import CryptContext
 
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 class User(Base):
     __tablename__ = 'users'
@@ -20,7 +21,9 @@ class User(Base):
     role = relationship("ApplicationRole", back_populates="users")
 
     def set_password(self, password):
-        self.password_hash = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+        """Hash le mot de passe avec CryptContext"""
+        self.password_hash = pwd_context.hash(password)
 
     def check_password(self, password):
-        return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+        """Vérifie le mot de passe avec CryptContext"""
+        return pwd_context.verify(password, self.password_hash)
