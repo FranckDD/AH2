@@ -26,14 +26,15 @@ class PatientRepository:
             last_name   = data['last_name'],
             first_name  = data['first_name'],
             mother_name = data.get('mother_name', '')
+            
         )
         sql = text("""
             CALL public.create_patient(
                 :code_patient, :first_name, :last_name, :birth_date,
                 :gender, :contact_phone, :residence,
-                :national_id, :assurance, :father_name, :mother_name
-            )
-        """
+                :national_id, :assurance, :father_name, :mother_name, :created_by, :created_by_name,
+    :last_updated_by, :last_updated_by_name 
+                   ) """
         )
         params = {
             'code_patient'  : code,
@@ -47,6 +48,10 @@ class PatientRepository:
             'assurance'     : data.get('assurance'),
             'father_name'   : data.get('father_name'),
             'mother_name'   : data.get('mother_name'),
+            'created_by'    : current_user.user_id,
+            'created_by_name': current_user.username,
+            'last_updated_by': current_user.user_id,
+            'last_updated_by_name':current_user.username
         }
         self.session.execute(sql, params)
         new_id = self.session.execute(text("SELECT currval('patients_patient_id_seq')")).scalar_one()
@@ -56,16 +61,26 @@ class PatientRepository:
     def update_patient(self, patient_id: int, data: dict, current_user) -> int:
         sql = text("""
             CALL public.update_patient(
-                :patient_id, :first_name, :last_name, :birth_date, :gender,
+                :patient_id,
+                :first_name, :last_name, :birth_date, :gender,
                 :national_id, :contact_phone, :assurance, :residence,
-                :father_name, :mother_name
+                :father_name, :mother_name,
+                :last_updated_by, :last_updated_by_name
             )
-        """
-        )
-        params = {**data, 'patient_id': patient_id}
+        """)
+
+        # on reprend data (first_name, last_name, …) et on ajoute les deux clés
+        params = {
+            **data,
+            'patient_id'           : patient_id,
+            'last_updated_by'      : current_user.user_id,
+            'last_updated_by_name' : current_user.username
+        }
+
         self.session.execute(sql, params)
         self.session.commit()
         return patient_id
+
 
     def delete_patient(self, patient_id: int) -> bool:
         self.session.execute(text("CALL public.delete_patient(:patient_id)"), {'patient_id': patient_id})
@@ -98,6 +113,7 @@ class PatientRepository:
             query = query.filter(
                 Patient.first_name.ilike(term) |
                 Patient.last_name.ilike(term) |
-                Patient.national_id.ilike(term)
+                Patient.national_id.ilike(term) |
+                Patient.code_patient.ilike(term)
             )
         return query.order_by(Patient.last_name).offset((page-1)*per_page).limit(per_page).all()

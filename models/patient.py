@@ -1,6 +1,7 @@
 # models/patient.py
 from sqlalchemy import Column, Integer, String, Date, Text, Sequence, ForeignKey, TIMESTAMP
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
 from .database import Base
 
 class Patient(Base):
@@ -23,3 +24,10 @@ class Patient(Base):
     created_by_name = Column(String(100))
     last_updated_by = Column(Integer, ForeignKey('users.user_id'))
     last_updated_by_name = Column(String(100))
+    last_updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
+    prescriptions = relationship(
+        "Prescription",
+        back_populates="patient",
+        cascade="all, delete-orphan"
+    )
+

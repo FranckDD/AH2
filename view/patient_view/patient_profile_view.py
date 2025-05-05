@@ -1,31 +1,56 @@
 import tkinter as tk
 import customtkinter as ctk
+from datetime import datetime
 from tkinter import ttk
 
 class PatientProfileView(ctk.CTkFrame):
-    def __init__(self, parent, controller, patient_id):
+    def __init__(self, parent, controller, patient_id=None):
         super().__init__(parent)
         self.controller = controller
-        self.patient_id = patient_id
+        self.patient_id = patient_id or getattr(controller, 'selected_patient', None)
 
-        # Onglets
+        # Create tabs with display names as keys
+        tab_names = ["Informations", "Rendez-vous", "Prescriptions", "Examens labo", "Consult. spirituelles"]
         self.tabview = ctk.CTkTabview(self)
-        for tab in ("Informations","Rendez-vous","Prescriptions","Examens labo","Consult. spirituelles"):
-            self.tabview.add(tab)
+        for name in tab_names:
+            self.tabview.add(name)
         self.tabview.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Construire chaque onglet
+        # Build tabs
         self._build_info_tab()
-        self._build_simple_list_tab("Rendez-vous", self.controller.get_appointments)
-        self._build_simple_list_tab("Prescriptions", self.controller.get_prescriptions)
-        self._build_simple_list_tab("Examens labo", self.controller.get_lab_results)
-        self._build_simple_list_tab("Consult. spirituelles", self.controller.get_spiritual_consultations)
+                # Resolve fetch functions (fall back to subcontrollers if needed)
+        appt_fetch = getattr(self.controller, 'get_appointments', None) or getattr(getattr(self.controller, 'appointment_controller', None), 'get_appointments', None)
+        presc_fetch = getattr(self.controller, 'get_prescriptions', None) or getattr(getattr(self.controller, 'prescription_controller', None), 'get_prescriptions', None)
+        lab_fetch = getattr(self.controller, 'get_lab_results', None) or getattr(getattr(self.controller, 'lab_controller', None), 'get_lab_results', None)
+        spirit_fetch = getattr(self.controller, 'get_spiritual_consultations', None) or getattr(getattr(self.controller, 'spiritual_controller', None), 'get_spiritual_consultations', None)
 
-        # Charger les données
-        self.load_patient()
+        # Build tabs
+        self._build_info_tab()
+        self._build_list_tab("Rendez-vous", appt_fetch,
+                              ("appointment_date","doctor_name","reason"))
+        self._build_list_tab("Prescriptions", presc_fetch,
+                              ("medication","dosage","start_date","end_date"))
+        self._build_list_tab("Examens labo", lab_fetch,
+                              ("test_type","test_date","status"))
+        self._build_list_tab("Consult. spirituelles", spirit_fetch,
+                              ("notes","consultation_date"))("Rendez-vous", self.controller.get_appointments,
+                              ("appointment_date","doctor_name","reason"))
+        self._build_list_tab("Prescriptions", self.controller.get_prescriptions,
+                              ("medication","dosage","start_date","end_date"))
+        self._build_list_tab("Examens labo", self.controller.get_lab_results,
+                              ("test_type","test_date","status"))
+        self._build_list_tab("Consult. spirituelles", self.controller.get_spiritual_consultations,
+                              ("notes","consultation_date"))
+
+        # Load data
+        if self.patient_id is not None:
+            self.load_patient()
+        else:
+            placeholder = ctk.CTkLabel(self, text="Aucun patient sélectionné.")
+            placeholder.pack(pady=20)
 
     def _build_info_tab(self):
-        info = self.tabview.tab("Informations")
+        tab = self.tabview.tab("Informations")
         labels = [
             ("Code patient", "code_patient"),
             ("Prénom", "first_name"),
@@ -41,49 +66,43 @@ class PatientProfileView(ctk.CTkFrame):
             ("Par", "created_by_name"),
         ]
         self.info_vars = {}
-        for i, (txt, key) in enumerate(labels):
-            ctk.CTkLabel(info, text=txt+":").grid(row=i, column=0, padx=5, pady=3, sticky="e")
-            var = ctk.CTkLabel(info, text="")
+        for i, (label, key) in enumerate(labels):
+            ctk.CTkLabel(tab, text=f"{label}:").grid(row=i, column=0, padx=5, pady=3, sticky="e")
+            var = ctk.CTkLabel(tab, text="")
             var.grid(row=i, column=1, padx=5, pady=3, sticky="w")
             self.info_vars[key] = var
 
-    def _build_simple_list_tab(self, tab_name, fetch_func):
-        """
-        Pour les listes : Rendez-vous, Prescriptions, etc.
-        fetch_func doit accepter patient_id et renvoyer une liste de dicts.
-        """
+    def _build_list_tab(self, tab_name, fetch_func, columns):
         tab = self.tabview.tab(tab_name)
-        cols = {
-            "Rendez-vous": ("appointment_date","doctor_name","reason"),
-            "Prescriptions": ("medication","dosage","start_date","end_date"),
-            "Examens labo": ("test_type","test_date","status"),
-            "Consult. spirituelles": ("prescription","consultation_date","notes")
-        }[tab_name]
-        tree = ttk.Treeview(tab, columns=cols, show="headings")
-        for c in cols:
-            tree.heading(c, text=c.replace("_"," ").title())
-        tree.pack(fill="both", expand=True, padx=5, pady=5)
-        setattr(self, f"tree_{tab_name.replace(' ','_')}", tree)
-        setattr(self, f"fetch_{tab_name}", fetch_func)
+        tree = ttk.Treeview(tab, columns=columns, show="headings")
+        for col in columns:
+            tree.heading(col, text=col.replace('_', ' ').title())
+            tree.column(col, anchor='center')
+        tree.pack(fill='both', expand=True, padx=5, pady=5)
+        setattr(self, f"tree_{tab_name.replace(' ', '_')}", tree)
+        setattr(self, f"fetch_{tab_name.replace(' ', '_')}", fetch_func)
 
     def load_patient(self):
-        # Charger infos générales
         data = self.controller.get_patient(self.patient_id)
-        if not data: return
+        if not data:
+            return
+        # Load info
         for key, var in self.info_vars.items():
             val = data.get(key)
-            if isinstance(val, (list, dict)):
-                var.configure(text=str(val))
-            else:
-                var.configure(text=val)
-
-        # Charger chaque liste
-        for tab_name in ("Rendez-vous","Prescriptions","Examens labo","Consult. spirituelles"):
-            fetch = getattr(self, f"fetch_{tab_name}")
-            tree  = getattr(self, f"tree_{tab_name.replace(' ','_')}")
-            # Effacer l'existant
-            for item in tree.get_children():
-                tree.delete(item)
-            # Insérer les nouvelles lignes
+            if hasattr(val, 'strftime'):
+                val = val.strftime('%Y-%m-%d')
+            var.configure(text=val)
+        # Load lists
+        for tab_name in ["Rendez-vous","Prescriptions","Examens labo","Consult. spirituelles"]:
+            tree = getattr(self, f"tree_{tab_name.replace(' ', '_')}")
+            fetch = getattr(self, f"fetch_{tab_name.replace(' ', '_')}")
+            for iid in tree.get_children():
+                tree.delete(iid)
             for row in fetch(self.patient_id):
-                tree.insert("", "end", values=tuple(row[col] for col in tree["columns"]))
+                vals = []
+                for col in tree['columns']:
+                    v = row.get(col)
+                    if hasattr(v, 'strftime'):
+                        v = v.strftime('%Y-%m-%d')
+                    vals.append(v)
+                tree.insert('', 'end', values=tuple(vals))
