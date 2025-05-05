@@ -2,7 +2,7 @@ import customtkinter as ctk
 from tkcalendar import DateEntry
 from controller.prescription_controller import PrescriptionController
 
-class PrescriptionForm(ctk.CTkFrame):
+class PrescriptionFormView(ctk.CTkFrame):
     def __init__(self, parent, controller, patient_id=None):
         super().__init__(parent)
         self.controller = controller

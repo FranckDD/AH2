@@ -17,7 +17,7 @@ class AuthView(ctk.CTk):
         
 
         # Intercepter fermeture fenêtre (croix)
-        #self.protocol("WM_DELETE_WINDOW", self)
+        self.protocol("WM_DELETE_WINDOW", self._on_closing)
 
         self.dashboard_frame = None
         self._setup_ui()
@@ -87,12 +87,33 @@ class AuthView(ctk.CTk):
         error_frame.pack(fill="x", pady=10)
 
     def _on_logout(self):
-        # Détruire le dashboard
+        # **Ici** : déconnexion → on ne ferme PAS l'app, juste on revient au login.
+        # 1) Détruit le dashboard
         if self.dashboard_frame:
             self.dashboard_frame.destroy()
             self.dashboard_frame = None
-        # Restaurer taille login
+
+        # 2) Réinitialise la taille & UI login
         self.geometry("400x600")
         self.resizable(False, False)
-        # Recréer l'UI login
+        # Supprime éventuels restes
+        for widget in self.winfo_children():
+            widget.destroy()
+        # Recrée l'UI de login
         self._setup_ui()
+
+    def _on_closing(self):
+        # Détruire d’abord le Dashboard si présent
+        if hasattr(self, "dashboard_frame") and self.dashboard_frame:
+            self.dashboard_frame.destroy()
+
+        try:
+            self.quit()
+        except Exception:
+            pass
+
+        super().destroy()
+
+    def _tk_error_handler(self, exc, val, tb):
+        # Ici on ignore simplement les erreurs après destruction
+        return
