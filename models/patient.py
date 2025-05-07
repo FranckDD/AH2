@@ -3,6 +3,7 @@ from sqlalchemy import Column, Integer, String, Date, Text, Sequence, ForeignKey
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .database import Base
+import models
 
 class Patient(Base):
     __tablename__ = 'patients'
@@ -27,6 +28,11 @@ class Patient(Base):
     last_updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     prescriptions = relationship(
         "Prescription",
+        back_populates="patient",
+        cascade="all, delete-orphan"
+    )
+    medical_records = relationship(
+        "MedicalRecord",
         back_populates="patient",
         cascade="all, delete-orphan"
     )

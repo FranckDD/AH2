@@ -1,5 +1,6 @@
 import customtkinter as ctk
 from tkinter import ttk
+from tkinter import messagebox
 from utils.pdf_export import export_patients_to_pdf
 
 # Assuming these view classes exist for editing and viewing profiles
@@ -114,9 +115,21 @@ class PatientListView(ctk.CTkFrame):
         self.refresh()
 
     def export_pdf(self):
-        search = self.search_entry.get().strip() or None
-        data = self.controller.list_patients(page=self.page, per_page=1000, search=search)
-        export_patients_to_pdf(data, title="Liste des Patients")
+            search = self.search_entry.get().strip() or None
+            data = self.controller.list_patients(
+                page=self.page, per_page=1000, search=search
+            )
+            try:
+                out_path = export_patients_to_pdf(data, title="Liste des Patients")
+                messagebox.showinfo(
+                    "Export PDF terminé",
+                    f"Le fichier a été généré ici :\n{out_path}"
+                )
+            except Exception as e:
+                messagebox.showerror(
+                    "Erreur lors de l'export PDF",
+                    f"Une erreur est survenue :\n{e}"
+                )
 
     def view_profile(self):
         if self.selected_patient is None:

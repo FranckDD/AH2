@@ -11,4 +11,3 @@ class MedicalRecordListView(ctk.CTkFrame):
 
     def refresh(self):
         recs = self.ctrl.list_records()
-        # remplir le tableau…

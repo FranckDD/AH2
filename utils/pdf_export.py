@@ -6,7 +6,7 @@ def export_patients_to_pdf(patients, title="Rapport Patients"):
     pdf = FPDF(orientation='L', unit='mm', format='A4')
     pdf.add_page()
     # En-tête officiel
-    logo = os.path.join('resources','logo.png')
+    logo = os.path.join('assets','logo_light.png')
     pdf.image(logo, x=10, y=8, w=30)
     pdf.set_font('Arial','B',16)
     pdf.cell(0, 10, title, ln=1, align='C')

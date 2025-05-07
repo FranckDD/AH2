@@ -117,3 +117,12 @@ class PatientRepository:
                 Patient.code_patient.ilike(term)
             )
         return query.order_by(Patient.last_name).offset((page-1)*per_page).limit(per_page).all()
+    
+    def find_by_code(self, code: str):
+        """Retourne le Patient dont code_patient == code, ou None."""
+        return (
+            self.session
+                .query(Patient)
+                .filter(Patient.code_patient == code)
+                .first()
+        )

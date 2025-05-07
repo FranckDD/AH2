@@ -2,6 +2,7 @@ from models.database import DatabaseManager
 from view.auth_view import AuthView
 from controller.auth_controller import AuthController
 import sys
+import models
 
 def main():
     # Initialisation de la base de données

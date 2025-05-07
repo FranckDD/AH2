@@ -23,3 +23,23 @@ class PatientController:
 
     def list_patients(self, page=1, per_page=10, search=None):
         return self.repo.list_patients(page, per_page, search)
+    
+    def find_by_code(self, code: str) -> dict:
+        p = self.repo.find_by_code(code)
+        if not p:
+            return None
+        # selon votre design, renvoyez un dict ou un objet
+        return {
+            'patient_id':    p.patient_id,
+            'code_patient':  p.code_patient,
+            'first_name':    p.first_name,
+            'last_name':     p.last_name,
+            'birth_date':    p.birth_date,
+            'gender':        p.gender,
+            'national_id':   p.national_id,
+            'contact_phone': p.contact_phone,
+            'assurance':     p.assurance,
+            'residence':     p.residence,
+            'father_name':   p.father_name,
+            'mother_name':   p.mother_name,
+        }

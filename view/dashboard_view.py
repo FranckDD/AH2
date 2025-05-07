@@ -2,6 +2,7 @@ import tkinter as tk
 import customtkinter as ctk
 from PIL import Image
 import os
+import models
 
 # Tes vues existantes
 from view.doctor_views.doctors_dashboard_view import DoctorsDashboardView
@@ -283,7 +284,9 @@ class DashboardView(ctk.CTkFrame):
     # Dossier Médical
     def show_medical_record_form(self):
         self._clear_content(); self._set_active_menu(self.medrec_btn)
-        MedicalRecordFormView(self.content, controller=self.parent.controller, current_user=self.user).grid(sticky="nsew", padx=10, pady=10)
+        MedicalRecordFormView(
+            self.content,
+            controller=self.parent.controller).grid(sticky="nsew", padx=10, pady=10)
     def show_medical_record_list(self):
         self._clear_content(); self._set_active_menu(self.medrec_btn)
         MedicalRecordListView(self.content, controller=self.parent.controller).grid(sticky="nsew", padx=10, pady=10)
