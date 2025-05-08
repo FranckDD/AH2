@@ -20,7 +20,7 @@ class MedicalRecordRepository:
     def create(self, data: dict):
         # Appelle la procédure SQL
         sql = text(
-            "CALL public.create_medical_record(:patient_id, :marital_status, :bp,"
+            "CALL public.create_medical_record(:patient_id, LOCALTIMESTAMP, :marital_status, :bp,"
             " :temperature, :weight, :height, :medical_history, :allergies,"
             " :symptoms, :diagnosis, :treatment, :severity, :notes, :motif_code)"
         )

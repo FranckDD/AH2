@@ -1,3 +1,4 @@
+import winsound 
 import tkinter as tk
 import customtkinter as ctk
 from datetime import datetime
@@ -134,51 +135,194 @@ class MedicalRecordFormView(ctk.CTkFrame):
 
     def _on_save(self):
         data = {}
+        # 0) reset visuel des champs et des messages
+        self._clear_highlights()
+        self._clear_feedback()
+
         # 1. patient_id
         pid = self.patient_id_var.get()
         if not pid.isdigit():
-            return self._show_error("Patient non sélectionné")
+            self._highlight(self.search_entry)
+            return self._show_error("Veuillez sélectionner un patient valide.")
         data['patient_id'] = int(pid)
+
         # 2. consultation_date
         raw = self.entries['consultation_date'].get()
         try:
             data['consultation_date'] = datetime.strptime(raw, "%Y-%m-%d")
         except:
             data['consultation_date'] = None
+
         # 3. marital_status
         disp = self.marital_var.get()
-        data['marital_status'] = next(val for d,val in self.marital_options if d==disp)
-        # 4-7 numeric/text
-        for key in ('bp','temperature','weight','height','medical_history','allergies','symptoms','diagnosis','treatment'):
-            w = self.entries[key]
-            data[key] = (w.get() if hasattr(w,'get') else w.get("1.0","end")).strip() or None
-        # 8. severity
+        data['marital_status'] = next(val for d, val in self.marital_options if d == disp)
+
+        # 4. Tension artérielle (bp) traité comme chaîne (varchar en BD)
+        data['bp'] = self.entries['bp'].get().strip() or None
+
+        # 5. validation des autres champs numériques
+        numeric_specs = {
+            'temperature': ("Température", 30, 45),
+            'weight':      ("Poids (kg)",  0, 1000),
+            'height':      ("Taille (cm)", 30, 250),
+        }
+        for key, (label, mn, mx) in numeric_specs.items():
+            raw = self.entries[key].get().strip()
+            if not raw:
+                data[key] = None
+                continue
+            try:
+                val = float(raw)
+            except ValueError:
+                self._highlight(self.entries[key])
+                return self._show_error(f"{label} doit être un nombre.")
+            if not (mn <= val < mx):
+                self._highlight(self.entries[key])
+                return self._show_error(f"{label} doit être entre {mn} et {mx}.")
+            data[key] = val
+
+        # 6. champs textes non-numériques
+        for key in ('medical_history','allergies','symptoms','diagnosis','treatment'):
+            txt = self.entries[key].get().strip()
+            data[key] = txt or None
+
+        # 7. severity
         disp_s = self.severity_var.get()
-        data['severity'] = next(val for d,val in self.severity_options if d==disp_s)
-        # 9. notes
+        data['severity'] = next(val for d, val in self.severity_options if d == disp_s)
+
+        # 8. notes
         notes_widget = self.entries['notes']
-        data['notes'] = notes_widget.get("1.0","end").strip() or None
-        # 10. motif_code (map label→code)
+        data['notes'] = notes_widget.get("1.0", "end").strip() or None
+
+        # 9. motif_code
         lab = self.motif_var.get()
         data['motif_code'] = self.label_to_code.get(lab)
-        # 11‑14 audit
+
+        # 10. audit fields
         if self.current_user:
-            data['created_by'] = self.current_user.user_id
-            data['created_by_name'] = self.current_user.username
-            data['last_updated_by'] = self.current_user.user_id
-            data['last_updated_by_name'] = self.current_user.username
+            data['created_by'] = data['last_updated_by'] = self.current_user.user_id
+            data['created_by_name'] = data['last_updated_by_name'] = self.current_user.username
         else:
-            data['created_by'] = data['created_by_name'] = None
-            data['last_updated_by'] = data['last_updated_by_name'] = None
-        # call
+            for f in ('created_by','last_updated_by','created_by_name','last_updated_by_name'):
+                data[f] = None
+
+        # 11. appel BD
         try:
             if self.record_id:
                 self.controller.update_record(self.record_id, data)
             else:
                 self.controller.create_record(data)
-            self._show_info("Enregistrement réussi")
         except Exception as e:
-            self._show_error(f"Erreur : {e}")
+            print("[DEV] Erreur SQL brute:", e)
+            return self._show_error("Échec de l’enregistrement, veuillez réessayer.")
+
+        # 12. succès : popup + reset
+        self._show_success_popup("Enregistrement réussi !")
+        self._reset_form()
+
+
+
+    # —————— helpers visuels et popup ——————
+
+    def _highlight(self, widget):
+        """Encadre en rouge uniquement les CTkEntry / CTkTextbox."""
+        if isinstance(widget, (ctk.CTkEntry, ctk.CTkTextbox)):
+            widget.configure(border_color="red", border_width=2)
+
+    def _clear_highlights(self):
+        """Remise à blanc de tous les CTkEntry / CTkTextbox."""
+        if isinstance(self.search_entry, (ctk.CTkEntry, ctk.CTkTextbox)):
+            self.search_entry.configure(border_color="#E0E0E0", border_width=1)
+        for w in self.entries.values():
+            if isinstance(w, (ctk.CTkEntry, ctk.CTkTextbox)):
+                w.configure(border_color="#E0E0E0", border_width=1)
+
+    def _clear_feedback(self):
+        if hasattr(self, '_feedback_labels'):
+            for label in self._feedback_labels:
+                label.destroy()
+        self._feedback_labels = []
+
+    def _show_error(self, msg):
+        self._clear_feedback()
+        lbl = ctk.CTkLabel(self, text=msg, text_color="red")
+        lbl.grid(row=0, column=0, columnspan=6, pady=5)
+        self._feedback_labels = [lbl]
+
+    def _show_info(self, msg):
+        self._clear_feedback()
+        lbl = ctk.CTkLabel(self, text=msg, text_color="green")
+        lbl.grid(row=0, column=0, columnspan=6, pady=5)
+        self._feedback_labels = [lbl]
+
+
+    def _show_success_popup(self, message):
+        popup = ctk.CTkToplevel(self)
+        def fade_in(popup, alpha=0.0):
+            alpha = round(alpha + 0.05, 2)
+            if alpha <= 1.0:
+                popup.attributes("-alpha", alpha)
+                popup.after(30, lambda: fade_in(popup, alpha))
+
+        popup.attributes("-alpha", 0.0)
+        fade_in(popup)
+
+        popup.title("Succès")
+        popup.geometry("300x100")
+        popup.attributes("-topmost", True)
+
+        # Centrage dynamique
+        self.update_idletasks()
+        x = self.winfo_rootx() + (self.winfo_width() // 2) - 150
+        y = self.winfo_rooty() + (self.winfo_height() // 2) - 50
+        popup.geometry(f"+{x}+{y}")
+
+        label = ctk.CTkLabel(popup, text=message, text_color="green", font=ctk.CTkFont(size=14))
+        label.pack(pady=20)
+
+        # Effet sonore simple
+        try:
+            winsound.MessageBeep(winsound.MB_ICONASTERISK)
+        except:
+            pass
+
+        # Fermeture après 5 sec
+        popup.after(5000, popup.destroy)
+
+
+    def _reset_form(self):
+        for key, widget in self.entries.items():
+            if isinstance(widget, (tk.Entry, ctk.CTkEntry)):
+                widget.delete(0, tk.END)
+            elif isinstance(widget, ctk.CTkTextbox):
+                widget.delete("1.0", tk.END)
+            elif isinstance(widget, ctk.CTkOptionMenu):
+                values = widget.cget("values")
+                if values:
+                    widget.set(values[0])  # Première option disponible
+
+        # Menus déroulants à part si reliés à d'autres variables
+        if hasattr(self, 'marital_var') and self.marital_options:
+            self.marital_var.set(self.marital_options[0][0])
+
+        if hasattr(self, 'severity_var') and self.severity_options:
+            self.severity_var.set(self.severity_options[0][0])
+
+        if hasattr(self, 'motif_var') and self.label_to_code:
+            default = next(iter(self.label_to_code))  # Premier label
+            self.motif_var.set(default)
+
+        # Champs liés au patient
+        self.patient_id_var.set("")
+        if hasattr(self, 'search_entry'):
+            self.search_entry.delete(0, tk.END)
+
+        self.record_id = None
+
+        # Nettoyer visuel
+        self._clear_highlights()
+        self._clear_feedback()
+
 
     def _on_delete(self):
         if not self.record_id: return
@@ -210,3 +354,6 @@ class MedicalRecordFormView(ctk.CTkFrame):
         ctk.CTkLabel(self, text=msg, text_color="red").grid(row=0, column=0, columnspan=6, pady=5)
     def _show_info(self, msg):
         ctk.CTkLabel(self, text=msg, text_color="green").grid(row=0, column=0, columnspan=6, pady=5)
+
+
+    
