@@ -2,13 +2,16 @@ from sqlalchemy import text
 from models.database import DatabaseManager
 from sqlalchemy.orm import Session
 from models.medical_record import MedicalRecord
+from sqlalchemy.orm import joinedload
 
 class MedicalRecordRepository:
     def __init__(self):
         self.db = DatabaseManager("postgresql://postgres:Admin_2025@localhost/AH2")
         self.session: Session = self.db.get_session()
 
+
     def list_records(self, patient_id=None, page=1, per_page=20):
+        #q = self.session.query(MedicalRecord).options(joinedload(MedicalRecord.patient))
         q = self.session.query(MedicalRecord)
         if patient_id:
             q = q.filter_by(patient_id=patient_id)
@@ -29,16 +32,35 @@ class MedicalRecordRepository:
         return True
 
     def update(self, record_id: int, data: dict):
-        # On suppose exist proc update_medical_record
+        # on ne veut plus passer patient_id à la procédure d’update
+        # supprimez-le du dict si présent
+        data = data.copy()
+        data.pop('patient_id', None)
+
+        # ajoute le record_id
         data['record_id'] = record_id
+
         sql = text(
-            "CALL public.update_medical_record(:record_id, :patient_id, :marital_status, :bp,"
-            " :temperature, :weight, :height, :medical_history, :allergies,"
-            " :symptoms, :diagnosis, :treatment, :severity, :notes, :motif_code)"
+            "CALL public.update_medical_record("
+            " :record_id,"
+            " :marital_status,"
+            " :bp,"
+            " :temperature,"
+            " :weight,"
+            " :height,"
+            " :medical_history,"
+            " :allergies,"
+            " :symptoms,"
+            " :diagnosis,"
+            " :treatment,"
+            " :severity,"
+            " :notes,"
+            " :motif_code)"
         )
         self.session.execute(sql, data)
         self.session.commit()
         return True
+
 
     def delete(self, record_id: int):
         # On suppose exist proc delete_medical_record

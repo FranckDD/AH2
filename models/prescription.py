@@ -16,3 +16,4 @@ class Prescription(Base):
     end_date        = Column(Date)
     notes           = Column(Text)
     patient         = relationship("Patient", back_populates="prescriptions")
+    medical_record = relationship("MedicalRecord", back_populates="prescriptions")

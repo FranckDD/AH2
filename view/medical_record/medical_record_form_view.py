@@ -139,12 +139,13 @@ class MedicalRecordFormView(ctk.CTkFrame):
         self._clear_highlights()
         self._clear_feedback()
 
-        # 1. patient_id
-        pid = self.patient_id_var.get()
-        if not pid.isdigit():
-            self._highlight(self.search_entry)
-            return self._show_error("Veuillez sélectionner un patient valide.")
-        data['patient_id'] = int(pid)
+        # 1) patient_id : seulement lors de la création (pas en update)
+        if not self.record_id:
+            pid = self.patient_id_var.get()
+            if not pid.isdigit():
+                self._highlight(self.search_entry)
+                return self._show_error("Veuillez sélectionner un patient valide.")
+            data['patient_id'] = int(pid)
 
         # 2. consultation_date
         raw = self.entries['consultation_date'].get()
@@ -217,8 +218,14 @@ class MedicalRecordFormView(ctk.CTkFrame):
             return self._show_error("Échec de l’enregistrement, veuillez réessayer.")
 
         # 12. succès : popup + reset
-        self._show_success_popup("Enregistrement réussi !")
-        self._reset_form()
+        if self.record_id:
+            self._show_success_popup("Modification réussie !")
+            self.master.destroy()  # Ferme le frame courant (la fenêtre d'édition)
+        else:
+            self._show_success_popup("Création réussie !")
+            self._reset_form()     # Réinitialise le formulaire pour un nouveau enregistrement
+
+   
 
 
 
@@ -334,21 +341,50 @@ class MedicalRecordFormView(ctk.CTkFrame):
 
     def _load_record(self):
         rec = self.controller.get_record(self.record_id)
-        if not rec: return
+        if not rec:
+            return
+
+        # ID du patient
         pid = rec['patient_id'] if isinstance(rec, dict) else rec.patient_id
         self.patient_id_var.set(str(pid))
-        # fill entries
+
+        # Remplissage des champs
         for key, widget in self.entries.items():
             val = rec[key] if isinstance(rec, dict) else getattr(rec, key)
-            if key == 'notes':
-                widget.delete("1.0","end"); widget.insert("1.0", val or '')
-            else:
-                widget.delete(0, tk.END); widget.insert(0, val or '')
-        # set selects
-        label = self.code_to_label.get(rec['motif_code'] if isinstance(rec, dict) else rec.motif_code)
+
+            # zone de texte multiline
+            if isinstance(widget, ctk.CTkTextbox):
+                widget.delete("1.0", "end")
+                widget.insert("1.0", val or "")
+
+            # date
+            elif isinstance(widget, DateEntry):
+                if val:
+                    widget.set_date(val)
+
+            # champ classique
+            elif isinstance(widget, ctk.CTkEntry):
+                widget.delete(0, tk.END)
+                widget.insert(0, val or "")
+
+            # CTkOptionMenu dans self.entries : on ignore, il est géré plus bas
+            # (sinon on planterait car CTkOptionMenu n’a pas delete/insert)
+
+        # Positionnement des OptionMenus hors self.entries
+        # motif
+        label = self.code_to_label.get(
+            rec['motif_code'] if isinstance(rec, dict) else rec.motif_code
+        )
         self.motif_var.set(label)
-        self.marital_var.set(next(d for d,v in self.marital_options if v==rec.get('marital_status')))
-        self.severity_var.set(next(d for d,v in self.severity_options if v==rec.get('severity')))
+
+        # marital_status
+        ms = rec['marital_status'] if isinstance(rec, dict) else rec.marital_status
+        self.marital_var.set(next(d for d, v in self.marital_options if v == ms))
+
+        # severity
+        sv = rec['severity'] if isinstance(rec, dict) else rec.severity
+        self.severity_var.set(next(d for d, v in self.severity_options if v == sv))
+
 
     def _show_error(self, msg):
         ctk.CTkLabel(self, text=msg, text_color="red").grid(row=0, column=0, columnspan=6, pady=5)

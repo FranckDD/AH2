@@ -3,6 +3,7 @@ import customtkinter as ctk
 from PIL import Image
 import os
 import models
+from tkinter import messagebox
 
 # Tes vues existantes
 from view.doctor_views.doctors_dashboard_view import DoctorsDashboardView
@@ -289,12 +290,21 @@ class DashboardView(ctk.CTkFrame):
             controller=self.parent.controller).grid(sticky="nsew", padx=10, pady=10)
     def show_medical_record_list(self):
         self._clear_content(); self._set_active_menu(self.medrec_btn)
-        MedicalRecordListView(self.content, controller=self.parent.controller).grid(sticky="nsew", padx=10, pady=10)
+        MedicalRecordListView(
+        self.content, controller=self.parent.controller, on_prescribe=self.show_prescription_form).grid(sticky="nsew", padx=10, pady=10)
+        #MedicalRecordListView(self.content, controller=self.parent.controller).grid(sticky="nsew", padx=10, pady=10)
 
     # Prescription
-    def show_prescription_form(self):
-        self._clear_content(); self._set_active_menu(self.presc_btn)
-        PrescriptionFormView(self.content, controller=self.parent.controller, current_user=self.user).grid(sticky="nsew", padx=10, pady=10)
+    def show_prescription_form(self, patient_id=None, medical_record_id=None):
+        popup = ctk.CTkToplevel(self.content)
+        form = PrescriptionFormView(
+            popup,
+            controller=self.parent.controller,
+            patient_id=patient_id,
+            medical_record_id=medical_record_id
+        )
+        form.pack(expand=True, fill="both")
+
     def show_prescription_list(self):
         self._clear_content(); self._set_active_menu(self.presc_btn)
         PrescriptionListView(self.content, controller=self.parent.controller).grid(sticky="nsew", padx=10, pady=10)
